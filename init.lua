@@ -23,6 +23,7 @@ local mems = insecure.io.open('/proc/meminfo')
 function update_status()
 	--local t = os.clock()
 	local num = #minetest.get_connected_players()
+        local nummod= #minetest.get_modnames()
 	local lag = string.match(minetest.get_server_status(), "lag=(.-), cli")
 	local la1, la5, la15 = string.match(lavg:read("*a"), "(.-) (.-) (.-) ")
 	local total = tonumber(string.match(mems:read(), "%d+"))
@@ -32,10 +33,31 @@ function update_status()
 	lavg:seek("set",0) -- return to start of file for next iteration
 	mems:read("*a") -- read to the end of file, otherwise on next iteration data will be old
 	mems:seek("set",0) -- return to start of file for next iteration
-	local responce = "HTTP/1.1 200 OK\nConnection: close\nContent-Length: %d\nContent-Type: text/json\n\n%s"
-	local json = string.format('{"la1":%s,"la5":%s,"la15":%s,"lag":%s,"mem":%f,"num":%d}', la1, la5, la15, lag, mem, num)
+	local response = "HTTP/1.1 200 OK\nConnection: close\nContent-Length: %d\nContent-Type: text/json\n\n%s"
+	local json = string.format('{"la1":%s,"la5":%s,"la15":%s,"lag":%s,"mem":%f,"num":%d}\n', la1, la5, la15, lag, mem, num)
+        local time = minetest.get_gametime()
+	local days = minetest.get_day_count()
+
+        for k,kk in pairs(minetest.get_version()) do
+           json=json..k..":"..kk..", "
+	end
+-- 	json=json..time..","..minetest.get_version()['string']
+	json = json..time..", "..days
+
+	for _,player in ipairs(minetest.get_connected_players()) do
+		json=json..player:get_player_name()
+	end
+	
+	json="# HELP Mintest Value \n"
+	json=json.."# TYPE players counter\n"
+	json=json.."minetest{type=\"player\"} "..string.format("%d",num).."\n"
+	json=json.."minetest{type=\"days\"} "..string.format("%d",days).."\n"
+	json=json.."minetest{type=\"time\"} "..string.format("%d",time).."\n"
+	json=json.."minetest{type=\"mods\"} "..string.format("%d",nummod).."\n"
+
+
 	--print(os.clock() - t)
-	answer = string.format(responce, #json, json)
+	answer = string.format(response, #json, json)
 	minetest.after(10, update_status)
 end
 
