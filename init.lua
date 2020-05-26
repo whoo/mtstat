@@ -1,3 +1,4 @@
+--		(c) 2020 Dominique Derrier base on Tim Dorohin template.
 --		(c) 2018 Tim Dorohin
 --		This program is free software: you can redistribute it and/or modify
 --		it under the terms of the GNU General Public License as published by
@@ -30,23 +31,24 @@ function update_status()
 	mems:read()
 	local free = tonumber(string.match(mems:read(), "%d+"))
 	local mem = (total-free)/total*100
-	lavg:seek("set",0) -- return to start of file for next iteration
-	mems:read("*a") -- read to the end of file, otherwise on next iteration data will be old
-	mems:seek("set",0) -- return to start of file for next iteration
+	lavg:seek("set",0) 	-- return to start of file for next iteration
+	mems:read("*a") 	-- read to the end of file, otherwise on next iteration data will be old
+	mems:seek("set",0) 	-- return to start of file for next iteration
 	local response = "HTTP/1.1 200 OK\nConnection: close\nContent-Length: %d\nContent-Type: text/json\n\n%s"
-	local json = string.format('{"la1":%s,"la5":%s,"la15":%s,"lag":%s,"mem":%f,"num":%d}\n', la1, la5, la15, lag, mem, num)
-        local time = minetest.get_gametime()
+--	local json = string.format('{"la1":%s,"la5":%s,"la15":%s,"lag":%s,"mem":%f,"num":%d}\n', la1, la5, la15, lag, mem, num)
+        local json = ""
+        local time = minetest.get_timeofday()*24000
 	local days = minetest.get_day_count()
 
-        for k,kk in pairs(minetest.get_version()) do
-           json=json..k..":"..kk..", "
-	end
+--        for k,kk in pairs(minetest.get_version()) do
+--           json=json..k..":"..kk..", "
+--	end
 -- 	json=json..time..","..minetest.get_version()['string']
-	json = json..time..", "..days
+--	json = json..time..", "..days
 
-	for _,player in ipairs(minetest.get_connected_players()) do
-		json=json..player:get_player_name()
-	end
+--	for _,player in ipairs(minetest.get_connected_players()) do
+--		json=json..player:get_player_name()
+--	end
 	
 	json="# HELP Mintest Value \n"
 	json=json.."# TYPE players counter\n"
@@ -54,6 +56,8 @@ function update_status()
 	json=json.."minetest{type=\"days\"} "..string.format("%d",days).."\n"
 	json=json.."minetest{type=\"time\"} "..string.format("%d",time).."\n"
 	json=json.."minetest{type=\"mods\"} "..string.format("%d",nummod).."\n"
+	json=json.."minetest{type=\"lag\"} "..string.format("%s",lag).."\n"
+	json=json.."minetest{type=\"uptime\"} "..string.match(minetest.get_server_status(), "uptime=(.-), max_lag").."\n"
 
 
 	--print(os.clock() - t)
