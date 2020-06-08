@@ -14,7 +14,7 @@
 --		along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 local insecure = minetest.request_insecure_environment()
-assert(insecure, "Add mtstat mod to trusted!")
+assert(insecure, "Please Add mtstat mod to trusted!")
 
 local status = {}
 local answer = ""
@@ -28,39 +28,50 @@ function update_status()
 	local lag = string.match(minetest.get_server_status(), "lag=(.-), cli")
 	local la1, la5, la15 = string.match(lavg:read("*a"), "(.-) (.-) (.-) ")
 	local total = tonumber(string.match(mems:read(), "%d+"))
+	local free    = tonumber(string.match(mems:read(), "%d+"))
 	mems:read()
-	local free = tonumber(string.match(mems:read(), "%d+"))
-	local mem = (total-free)/total*100
+	local buffers = tonumber(string.match(mems:read(), "%d+"))
+	local cache   = tonumber(string.match(mems:read(), "%d+"))
+        local used    = total - free - buffers - cache
+	local mem = (used)/total*100
+
 	lavg:seek("set",0) 	-- return to start of file for next iteration
 	mems:read("*a") 	-- read to the end of file, otherwise on next iteration data will be old
 	mems:seek("set",0) 	-- return to start of file for next iteration
-	local response = "HTTP/1.1 200 OK\nConnection: close\nContent-Length: %d\nContent-Type: text/json\n\n%s"
---	local json = string.format('{"la1":%s,"la5":%s,"la15":%s,"lag":%s,"mem":%f,"num":%d}\n', la1, la5, la15, lag, mem, num)
+
+
         local json = ""
+
         local time = minetest.get_timeofday()*24000
 	local days = minetest.get_day_count()
 
---        for k,kk in pairs(minetest.get_version()) do
---           json=json..k..":"..kk..", "
---	end
--- 	json=json..time..","..minetest.get_version()['string']
---	json = json..time..", "..days
-
---	for _,player in ipairs(minetest.get_connected_players()) do
---		json=json..player:get_player_name()
---	end
 	
-	json="# HELP Mintest Value \n"
-	json=json.."# TYPE players counter\n"
+	json="# HELP Mintest Server Stats \n"
+	json=json.."# TYPE minetest counter\n"
 	json=json.."minetest{type=\"player\"} "..string.format("%d",num).."\n"
 	json=json.."minetest{type=\"days\"} "..string.format("%d",days).."\n"
 	json=json.."minetest{type=\"time\"} "..string.format("%d",time).."\n"
 	json=json.."minetest{type=\"mods\"} "..string.format("%d",nummod).."\n"
 	json=json.."minetest{type=\"lag\"} "..string.format("%s",lag).."\n"
 	json=json.."minetest{type=\"uptime\"} "..string.match(minetest.get_server_status(), "uptime=(.-), max_lag").."\n"
+        json=json.."minetest{type=\"nbban\"} "..string.format("%d",#minetest.get_ban_list()).."\n"
+        json=json.."minetest{cat=\"mem\",type=\"pctmem\"} "..string.format("%s",mem).."\n"
+
+        json=json.."minetest{cat=\"mem\",type=\"total\"} "..string.format("%s",total).."\n"
+        json=json.."minetest{cat=\"mem\",type=\"used\"} "..string.format("%s",used).."\n"
+        json=json.."minetest{cat=\"mem\",type=\"free\"} "..string.format("%s",free).."\n"
+        json=json.."minetest{cat=\"mem\",type=\"buffers\"} "..string.format("%s",buffers).."\n"
+        json=json.."minetest{cat=\"mem\",type=\"cache\"} "..string.format("%s",cache).."\n"
+
+        json=json.."minetest{cat=\"load\",type=\"laad1\"} "..string.format("%s",la1).."\n"
+        json=json.."minetest{cat=\"load\",type=\"load5\"} "..string.format("%s",la5).."\n"
+        json=json.."minetest{cat=\"load\",type=\"load15\"} "..string.format("%s",la15).."\n"
+
 
 
 	--print(os.clock() - t)
+
+	local response = "HTTP/1.1 200 OK\nConnection: close\nContent-Length: %d\nContent-Type: text/plain\n\n%s"
 	answer = string.format(response, #json, json)
 	minetest.after(10, update_status)
 end
